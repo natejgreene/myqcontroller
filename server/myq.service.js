@@ -93,7 +93,14 @@ var exports = module.exports = new function () {
             host: 'myqexternal.myqdevice.com',
             port: 443,
             path: getUrl('/api/v4/userdevicedetails/get'),
-            method: 'GET'
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Chamberlain/3.73',
+                'BrandId': '2',
+                'ApiVersion': '4.1',
+                'Culture': 'en',
+                'MyQApplicationId': myQAppId
+            }
         };
 
         var req = https.request(options, function(res) {
