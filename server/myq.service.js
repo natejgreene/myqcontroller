@@ -35,7 +35,7 @@ var exports = module.exports = new function () {
         myQAppId = 'NWknvuBd7LoFHfXmKNMBcgajXtZEgKUh4V7WNzMidrpUUluDpVYVZx+xT4PCM5Kx',
         devices = [],
         tmrRecover = null;
-
+        tmrGetDevices = null;
     /**
      * Get api url
      *
@@ -43,7 +43,7 @@ var exports = module.exports = new function () {
      * @returns {string}
      */
     function getUrl(path) {
-        return 'https://myqexternal.myqdevice.com' + path + '?appId=' + myQAppId + '&securityToken=' + config.securityToken
+        return  path + '?appId=' + myQAppId + '&securityToken=' + config.securityToken
     }
 
     /**
@@ -89,23 +89,25 @@ var exports = module.exports = new function () {
             console.log(getTimestamp() + 'Getting device list...');
         }
 
-        // get devices
-        request
-            .get({
-                url: getUrl('/api/v4/userdevicedetails/get'),
-                headers: {
-                    'User-Agent': 'Chamberlain/3.73',
-                    'BrandId': '2',
-                    'ApiVersion': '4.1',
-                    'Culture': 'en',
-                    'MyQApplicationId': myQAppId
-                }
-            }, handleGetDeviceResponse)
-            .on('error', function (e) {
-                console.error(getTimestamp() + 'Failed sending doGetDevice request: ' + e);
-                shouldRecover = true;
-                doRecover();
+        var options = {
+            host: 'myqexternal.myqdevice.com',
+            port: 443,
+            path: getUrl('/api/v4/userdevicedetails/get'),
+            method: 'GET'
+        };
+
+        var req = https.request(options, function(res) {
+            res.on('data', function(d) {
+                handleGetDeviceResponse(res, d)
             });
+        });
+        req.end();
+
+        req.on('error', function(e) {
+            console.error(getTimestamp() + 'Failed sending doGetDevice request: ' + e);
+            shouldRecover = true;
+            doRecover();
+        });
     }
 
     /**
@@ -113,10 +115,10 @@ var exports = module.exports = new function () {
      * @param response
      * @param body
      */
-    function handleGetDeviceResponse(err, response, body) {
+    function handleGetDeviceResponse(response, body) {
 
         // handle error
-        if (err || response.statusCode !== 200 || !body) {
+        if (response.statusCode !== 200 || !body) {
             console.error(getTimestamp() + 'Error getting device list: ' + err);
             shouldRecover = true;
             return doRecover();
@@ -216,13 +218,15 @@ var exports = module.exports = new function () {
                 }
 
                 // refresh every 10 seconds
-                setTimeout(function () {
+		if (tmrGetDevices) clearTimeout(tmrGetDevices);
+                tmrGetDevices = setTimeout(function () {
                     doGetDevices(true);
                 }, 10 * 1000);
             }
         } catch (e) {
             // try to recover
             console.error(getTimestamp() + 'Error reading device list: ' + e);
+            shouldRecover = true;
             return doRecover();
         }
     }
